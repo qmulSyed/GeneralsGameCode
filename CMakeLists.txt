@@ -1,0 +1,71 @@
+cmake_minimum_required(VERSION 3.23)
+project(
+  SAGE
+  VERSION 0.1
+  LANGUAGES C CXX)
+
+if(WIN32)
+  add_definitions(-D_WINDOWS)
+  add_definitions(-DWINVER=0x400)
+  add_definitions(-D_WIN32_WINNT=0x0400)
+elseif(UNIX)
+  add_definitions(-D_UNIX)
+endif()
+
+option(SAGE_BUILD_GENERALS "Build the C&C Generals game" OFF)
+option(SAGE_BUILD_ZEROHOUR "Build the C&C Generals Zero Hour game" ON)
+option(SAGE_USE_BINK "Use Bink Video Library" ON)
+option(SAGE_USE_GAMESPY "Use GameSpy" ON)
+option(SAGE_USE_MILES "Use Miles Sound System" ON)
+include(CMakeDependentOption)
+cmake_dependent_option(SAGE_USE_DX8 "Use DirectX 8" ON "WIN32" OFF)
+
+message(STATUS "Building Generals: ${SAGE_BUILD_GENERALS}")
+message(STATUS "Building Zero Hour: ${SAGE_BUILD_ZEROHOUR}")
+message(STATUS "Using Bink: ${SAGE_USE_BINK}")
+message(STATUS "Using GameSpy: ${SAGE_USE_GAMESPY}")
+message(STATUS "Using Miles: ${SAGE_USE_MILES}")
+message(STATUS "Using DirectX 8: ${SAGE_USE_DX8}")
+
+include(FetchContent)
+if(SAGE_USE_BINK)
+  FetchContent_Declare(
+    bink
+    GIT_REPOSITORY https://github.com/TheSuperHackers/bink-sdk-stub.git
+    GIT_TAG f554b7fa68c97d4e6b607d535e726ef37622fe65)
+  FetchContent_MakeAvailable(bink)
+endif()
+
+if(SAGE_USE_GAMESPY)
+  set(GS_OPENSSL FALSE)
+  FetchContent_Declare(
+      gamespy
+      GIT_REPOSITORY https://github.com/TheAssemblyArmada/GamespySDK.git
+      GIT_TAG        d7ec6d4fea1c11fc37173ea954fc1ec47202a931
+  )
+  FetchContent_MakeAvailable(gamespy)
+endif()
+
+if(SAGE_USE_MILES)
+  FetchContent_Declare(
+    miles
+    GIT_REPOSITORY https://github.com/TheSuperHackers/miles-sdk-stub.git
+    GIT_TAG master)
+  FetchContent_MakeAvailable(miles)
+endif()
+
+if(SAGE_USE_DX8)
+  FetchContent_Declare(
+    dx8
+    GIT_REPOSITORY https://github.com/TheSuperHackers/min-dx8-sdk.git
+    GIT_TAG        efd4b6d9f4915bd38aaa2184d49f404a18be59a3)
+  FetchContent_MakeAvailable(dx8)
+endif()
+
+if(SAGE_BUILD_GENERALS)
+  add_subdirectory(Generals/Code)
+endif()
+
+if(SAGE_BUILD_ZEROHOUR)
+  add_subdirectory(GeneralsMD/Code)
+endif()
