@@ -113,5 +113,4 @@ protected:
 	OpenFilesHash m_openFiles;
 	UnsignedInt m_currentlyUsedSize;
 	UnsignedInt m_maxSize;
-	std::mutex m_mutex;
 };

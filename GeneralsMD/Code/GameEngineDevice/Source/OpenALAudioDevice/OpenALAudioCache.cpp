@@ -58,29 +58,21 @@ Bool OpenALAudioFileCache::decodeFFmpeg(OpenAudioFile* file)
 //-------------------------------------------------------------------------------------------------
 OpenALAudioFileCache::~OpenALAudioFileCache()
 {
-	{
-		std::lock_guard mut(m_mutex);
-
-		// Free all the samples that are open.
-		OpenFilesHashIt it;
-		for (it = m_openFiles.begin(); it != m_openFiles.end(); ++it) {
-			if (it->second.m_openCount > 0) {
-				DEBUG_CRASH(("Sample '%s' is still playing, and we're trying to quit.\n", it->second.m_eventInfo->m_audioName.str()));
-			}
-
-			releaseOpenAudioFile(&it->second);
-			// Don't erase it from the map, cause it makes this whole process way more complicated, and 
-			// we're about to go away anyways.
+	// Free all the samples that are open.
+	OpenFilesHashIt it;
+	for (it = m_openFiles.begin(); it != m_openFiles.end(); ++it) {
+		if (it->second.m_openCount > 0) {
+			DEBUG_CRASH(("Sample '%s' is still playing, and we're trying to quit.\n", it->second.m_eventInfo->m_audioName.str()));
 		}
-	}
 
+		releaseOpenAudioFile(&it->second);
+		// Don't erase it from the map, cause it makes this whole process way more complicated, and 
+		// we're about to go away anyways.
+	}
 }
 
 void* OpenALAudioFileCache::openFile(AsciiString& filename)
 {
-	// Protect the entire openFile function
-	std::lock_guard mut(m_mutex);
-
 	auto it = m_openFiles.find(filename);
 
 	if (it != m_openFiles.end()) {
@@ -134,9 +126,6 @@ void* OpenALAudioFileCache::openFile(AsciiString& filename)
 //-------------------------------------------------------------------------------------------------
 void* OpenALAudioFileCache::openFile(AudioEventRTS* eventToOpenFrom)
 {
-	// Protect the entire openFile function
-	std::lock_guard mut(m_mutex);
-
 	AsciiString strToFind;
 	switch (eventToOpenFrom->getNextPlayPortion())
 	{
@@ -218,9 +207,6 @@ void OpenALAudioFileCache::closeFile(void* fileToClose)
 		return;
 	}
 
-	// Protect the entire closeFile function
-	std::lock_guard mut(m_mutex);
-
 	OpenFilesHash::iterator it;
 	for (it = m_openFiles.begin(); it != m_openFiles.end(); ++it) {
 		if (it->second.m_buffer == (ALuint)(uintptr_t)fileToClose) {
@@ -236,8 +222,6 @@ float OpenALAudioFileCache::getFileLength(void* handle)
 		return 0.0f;
 	}
 
-	std::lock_guard mut(m_mutex);
-
 	for (auto it = m_openFiles.begin(); it != m_openFiles.end(); ++it) {
 		if (it->second.m_buffer == (ALuint)(uintptr_t)handle) {
 			return it->second.m_duration;
@@ -251,8 +235,6 @@ float OpenALAudioFileCache::getFileLength(void* handle)
 void OpenALAudioFileCache::setMaxSize(UnsignedInt size)
 {
 	// Protect the function, in case we're trying to use this value elsewhere.
-	std::lock_guard mut(m_mutex);
-
 	m_maxSize = size;
 }
 
