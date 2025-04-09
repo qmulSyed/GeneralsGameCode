@@ -264,20 +264,19 @@ void OpenALAudioFileCache::releaseOpenAudioFile(OpenAudioFile* fileToRelease)
 		TheAudio->closeAnySamplesUsingFile((const void*)fileToRelease->m_buffer);
 	}
 
-	if (fileToRelease->m_buffer) {
-		if (fileToRelease->m_ffmpegFile) {
-			// Free FFMPEG handles
-			delete fileToRelease->m_ffmpegFile;
-		}
-		if (fileToRelease->m_buffer)
-		{
-			// Free the OpenAL buffer
-			alDeleteBuffers(1, &fileToRelease->m_buffer);
-		}
-		fileToRelease->m_ffmpegFile = NULL;
-		fileToRelease->m_buffer = NULL;
-		fileToRelease->m_eventInfo = NULL;
+	if (fileToRelease->m_ffmpegFile) {
+		// Free FFMPEG handles
+		delete fileToRelease->m_ffmpegFile;
 	}
+
+	if (fileToRelease->m_buffer)
+	{
+		// Free the OpenAL buffer
+		alDeleteBuffers(1, &fileToRelease->m_buffer);
+	}
+	fileToRelease->m_ffmpegFile = NULL;
+	fileToRelease->m_buffer = NULL;
+	fileToRelease->m_eventInfo = NULL;
 }
 
 //-------------------------------------------------------------------------------------------------
