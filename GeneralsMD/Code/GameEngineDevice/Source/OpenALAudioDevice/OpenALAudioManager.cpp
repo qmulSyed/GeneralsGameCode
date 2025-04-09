@@ -84,7 +84,7 @@ enum { INFINITE_LOOP_COUNT = 1000000 };
 
 //-------------------------------------------------------------------------------------------------
 OpenALAudioManager::OpenALAudioManager() :
-	m_providerCount(0),
+	m_providerCount(1),
 	m_selectedProvider(PROVIDER_ERROR),
 	m_selectedSpeakerType(0),
 	m_lastProvider(PROVIDER_ERROR),
@@ -98,6 +98,8 @@ OpenALAudioManager::OpenALAudioManager() :
 	m_prefSpeaker(AsciiString::TheEmptyString)
 {
 	m_audioCache = NEW OpenALAudioFileCache;
+	m_provider3D[0].name = "Miles Fast 2D Positional Audio";
+	m_provider3D[0].m_isValid = true;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1790,7 +1792,7 @@ void OpenALAudioManager::selectProvider(UnsignedInt providerNdx)
 		m_selectedProvider = PROVIDER_ERROR;
 		// try to select a failsafe
 		providerNdx = getProviderIndex("Miles Fast 2D Positional Audio");
-		//success = AIL_open_3D_provider(m_provider3D[providerNdx].id) == 0;
+		success = TRUE;
 	}
 
 	if (success)
@@ -2396,7 +2398,7 @@ void OpenALAudioManager::processPlayingList(void)
 						Real y = pos->y;
 						Real z = pos->z;
 						alSource3f(playing->m_source, AL_POSITION, x, y, z);
-						DEBUG_LOG(("Updating 3D sound position for %s to %f, %f, %f", playing->m_audioEventRTS->getEventName().str(), x, y, z));
+						DEBUG_LOG(("Updating 3D sound position for %s to %f, %f, %f\n", playing->m_audioEventRTS->getEventName().str(), x, y, z));
 					}
 				}
 			}
@@ -2914,6 +2916,16 @@ Bool OpenALAudioManager::isValidProvider(void)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::initSamplePools(void)
 {
+	if (!(isOn(AudioAffect_Sound3D) && isValidProvider()))
+	{
+		return;
+	}
+
+	m_num2DSamples = getAudioSettings()->m_sampleCount2D;
+	m_num3DSamples = getAudioSettings()->m_sampleCount3D;
+
+	// Streams are basically free, so we can just allocate the appropriate number
+	m_numStreams = getAudioSettings()->m_streamCount;
 }
 
 //-------------------------------------------------------------------------------------------------
