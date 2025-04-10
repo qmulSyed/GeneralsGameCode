@@ -38,7 +38,6 @@ struct PlayingAudio
 	FFmpegFile* m_ffmpegFile = nullptr;
 
 	PlayingAudioType m_type;
-	volatile PlayingStatus m_status;	// This member is adjusted by another running thread.
 	AudioEventRTS* m_audioEventRTS;
 	void* m_file;		// The file that was opened to play this
 	Bool m_requestStop;

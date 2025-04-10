@@ -42,13 +42,6 @@ enum PlayingAudioType
 	PAT_INVALID
 };
 
-enum PlayingStatus
-{
-	PS_Playing,
-	PS_Stopped,
-	PS_Paused
-};
-
 enum PlayingWhich
 {
 	PW_Attack,

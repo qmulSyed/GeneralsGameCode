@@ -82,6 +82,14 @@ enum { INFINITE_LOOP_COUNT = 1000000 };
 
 #define LOAD_ALC_PROC(N) N = reinterpret_cast<decltype(N)>(alcGetProcAddress(m_alcDevice, #N))
 
+static inline bool sourceIsStopped(ALuint source)
+{
+	ALenum state;
+	alGetSourcei(source, AL_SOURCE_STATE, &state);
+	
+	return (state == AL_STOPPED);
+}
+
 //-------------------------------------------------------------------------------------------------
 OpenALAudioManager::OpenALAudioManager() :
 	m_providerCount(1),
@@ -524,7 +532,6 @@ void OpenALAudioManager::stopAudio(AudioAffect which)
 			playing = *it;
 			if (playing) {
 				alSourceStop(playing->m_source);
-				playing->m_status = PS_Stopped;
 			}
 		}
 	}
@@ -534,7 +541,6 @@ void OpenALAudioManager::stopAudio(AudioAffect which)
 			playing = *it;
 			if (playing) {
 				alSourceStop(playing->m_source);
-				playing->m_status = PS_Stopped;
 			}
 		}
 	}
@@ -554,7 +560,6 @@ void OpenALAudioManager::stopAudio(AudioAffect which)
 					}
 				}
 				alSourceStop(playing->m_source);
-				playing->m_status = PS_Stopped;
 			}
 		}
 	}
@@ -1127,7 +1132,6 @@ void OpenALAudioManager::closeFile(void* fileRead)
 PlayingAudio* OpenALAudioManager::allocatePlayingAudio(void)
 {
 	PlayingAudio* aud = NEW PlayingAudio;	// poolify
-	aud->m_status = PS_Playing;
 	return aud;
 }
 
@@ -1641,8 +1645,6 @@ void OpenALAudioManager::notifyOfAudioCompletion(UnsignedInt audioCompleted, Uns
 			return;
 		}
 	}
-
-	playing->m_status = PS_Stopped;	// it will be cleaned up on the next frame update
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2331,7 +2333,7 @@ void OpenALAudioManager::processPlayingList(void)
 			continue;
 		}
 
-		if (playing->m_status == PS_Stopped)
+		if (sourceIsStopped(playing->m_source))
 		{
 			//m_stoppedAudio.push_back(playing);
 			releasePlayingAudio(playing);
@@ -2356,7 +2358,7 @@ void OpenALAudioManager::processPlayingList(void)
 			continue;
 		}
 
-		if (playing->m_status == PS_Stopped)
+		if (sourceIsStopped(playing->m_source))
 		{
 			//m_stoppedAudio.push_back(playing);			
 			releasePlayingAudio(playing);
@@ -2423,7 +2425,7 @@ void OpenALAudioManager::processPlayingList(void)
 			continue;
 		}
 
-		if (playing->m_status == PS_Stopped)
+		if (sourceIsStopped(playing->m_source))
 		{
 			//m_stoppedAudio.push_back(playing);			
 			releasePlayingAudio(playing);
@@ -2498,7 +2500,6 @@ void OpenALAudioManager::processFadingList(void)
 		}
 
 		if (playing->m_framesFaded >= getAudioSettings()->m_fadeAudioFrames) {
-			playing->m_status = PS_Stopped;
 			playing->m_requestStop = true;
 			//m_stoppedAudio.push_back(playing);
 			releasePlayingAudio(playing);
@@ -2775,8 +2776,6 @@ Bool OpenALAudioManager::startNextLoop(PlayingAudio* looping)
 			// delete the sound on completion (which would suck)
 			looping->m_cleanupAudioEventRTS = false;
 			looping->m_requestStop = true;
-			looping->m_status = PS_Stopped;
-
 
 			AudioRequest* req = allocateAudioRequest(true);
 			req->m_pendingEvent = looping->m_audioEventRTS;
