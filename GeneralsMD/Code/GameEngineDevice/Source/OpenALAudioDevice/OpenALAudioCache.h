@@ -39,7 +39,7 @@ struct PlayingAudio
 
 	PlayingAudioType m_type;
 	AudioEventRTS* m_audioEventRTS;
-	void* m_file;		// The file that was opened to play this
+	void* m_file = nullptr;		// The file that was opened to play this
 	Bool m_requestStop;
 	Bool m_cleanupAudioEventRTS;
 	Int m_framesFaded;
