@@ -71,75 +71,40 @@ OpenALAudioFileCache::~OpenALAudioFileCache()
 	}
 }
 
-void* OpenALAudioFileCache::openFile(AsciiString& filename)
+//-------------------------------------------------------------------------------------------------
+void *OpenALAudioFileCache::openFile(const OpenFileInfo &fileInfo)
 {
-	auto it = m_openFiles.find(filename);
+	AudioEventRTS *eventToOpenFrom = fileInfo.event;
 
-	if (it != m_openFiles.end()) {
-		++it->second.m_openCount;
-		return (void*)it->second.m_buffer;
-	}
-
-	// Couldn't find the file, so actually open it.
-	File* file = TheFileSystem->openFile(filename.str());
-	if (!file) {
-		DEBUG_ASSERTLOG(filename.isEmpty(), ("Missing Audio File: '%s'\n", filename.str()));
-		return NULL;
-	}
-
-	UnsignedInt fileSize = file->size();
-
-	OpenAudioFile openedAudioFile;
-	alGenBuffers(1, &openedAudioFile.m_buffer);
-	openedAudioFile.m_ffmpegFile = new FFmpegFile();
-
-	// This transfer ownership of file
-	if (!openedAudioFile.m_ffmpegFile->open(file)) {
-		releaseOpenAudioFile(&openedAudioFile);
-		return nullptr;
-	}
-
-	if (!decodeFFmpeg(&openedAudioFile)) {
-		releaseOpenAudioFile(&openedAudioFile);
-		return nullptr;
-	}
-
-	openedAudioFile.m_ffmpegFile->close();
-
-	openedAudioFile.m_fileSize = fileSize;
-	m_currentlyUsedSize += openedAudioFile.m_fileSize;
-	if (m_currentlyUsedSize > m_maxSize) {
-		DEBUG_LOG(("Audio Cache is full, trying to free some space\n"));
-		// We need to free some samples, or we're not going to be able to play this sound.
-		if (!freeEnoughSpaceForSample(openedAudioFile)) {
-			DEBUG_LOG(("Couldn't free enough space for sample\n"));
-			m_currentlyUsedSize -= openedAudioFile.m_fileSize;
-			releaseOpenAudioFile(&openedAudioFile);
+	AsciiString strToFind;
+	if (eventToOpenFrom)
+	{
+		switch (eventToOpenFrom->getNextPlayPortion())
+		{
+		case PP_Attack:
+			strToFind = eventToOpenFrom->getAttackFilename();
+			break;
+		case PP_Sound:
+			strToFind = eventToOpenFrom->getFilename();
+			break;
+		case PP_Decay:
+			strToFind = eventToOpenFrom->getDecayFilename();
+			break;
+		case PP_Done:
 			return NULL;
 		}
 	}
-
-	m_openFiles[filename] = openedAudioFile;
-	return (void*)openedAudioFile.m_buffer;
-}
-
-//-------------------------------------------------------------------------------------------------
-void* OpenALAudioFileCache::openFile(AudioEventRTS* eventToOpenFrom)
-{
-	AsciiString strToFind;
-	switch (eventToOpenFrom->getNextPlayPortion())
+	else
 	{
-	case PP_Attack:
-		strToFind = eventToOpenFrom->getAttackFilename();
-		break;
-	case PP_Sound:
-		strToFind = eventToOpenFrom->getFilename();
-		break;
-	case PP_Decay:
-		strToFind = eventToOpenFrom->getDecayFilename();
-		break;
-	case PP_Done:
-		return NULL;
+		if (fileInfo.filename)
+		{
+			strToFind = *fileInfo.filename;
+		}
+		else
+		{
+			DEBUG_CRASH(("No filename to open\n"));
+			return NULL;
+		}
 	}
 
 	auto it = m_openFiles.find(strToFind);
@@ -160,7 +125,7 @@ void* OpenALAudioFileCache::openFile(AudioEventRTS* eventToOpenFrom)
 
 	OpenAudioFile openedAudioFile;
 	alGenBuffers(1, &openedAudioFile.m_buffer);
-	openedAudioFile.m_eventInfo = eventToOpenFrom->getAudioEventInfo();
+	openedAudioFile.m_eventInfo = eventToOpenFrom ? eventToOpenFrom->getAudioEventInfo() : NULL;
 	openedAudioFile.m_ffmpegFile = new FFmpegFile();
 
 	// This transfer ownership of file
@@ -169,7 +134,7 @@ void* OpenALAudioFileCache::openFile(AudioEventRTS* eventToOpenFrom)
 		return nullptr;
 	}
 
-	if (eventToOpenFrom->isPositionalAudio()) {
+	if (eventToOpenFrom && eventToOpenFrom->isPositionalAudio()) {
 		if (openedAudioFile.m_ffmpegFile->getNumChannels() > 1) {
 			DEBUG_CRASH(("Requested Positional Play of audio '%s', but it is in stereo.", strToFind.str()));
 			return NULL;

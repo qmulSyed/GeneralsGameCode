@@ -1118,7 +1118,7 @@ void OpenALAudioManager::pauseAudioEvent(AudioHandle handle)
 //-------------------------------------------------------------------------------------------------
 void* OpenALAudioManager::loadFileForRead(AudioEventRTS* eventToLoadFrom)
 {
-	return m_audioCache->openFile(eventToLoadFrom);
+	return m_audioCache->openFile(OpenFileInfo {.event = eventToLoadFrom});
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2657,7 +2657,7 @@ Real OpenALAudioManager::getFileLengthMS(AsciiString strToLoad) const
 	float length = 0.0f;
 
 #ifdef SAGE_USE_FFMPEG
-	void* handle = m_audioCache->openFile(strToLoad);
+	void* handle = m_audioCache->openFile(OpenFileInfo{.filename = &strToLoad});
 	length = m_audioCache->getFileLength(handle);
 	m_audioCache->closeFile(handle);
 #endif

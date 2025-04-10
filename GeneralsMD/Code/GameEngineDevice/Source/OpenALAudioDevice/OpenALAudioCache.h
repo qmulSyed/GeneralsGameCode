@@ -70,6 +70,12 @@ struct OpenAudioFile
 	float m_duration = 0.0f;
 };
 
+struct OpenFileInfo
+{
+	AsciiString* filename;
+	AudioEventRTS* event;
+};
+
 typedef std::unordered_map< AsciiString, OpenAudioFile, rts::hash<AsciiString>, rts::equal_to<AsciiString> > OpenFilesHash;
 typedef OpenFilesHash::iterator OpenFilesHashIt;
 
@@ -80,8 +86,7 @@ public:
 
 	// Protected by mutex
 	virtual ~OpenALAudioFileCache();
-	void* openFile(AsciiString& filename);
-	void* openFile(AudioEventRTS* eventToOpenFrom);
+	void* openFile(const OpenFileInfo& fileToOpenFrom);
 	void closeFile(void* fileToClose);
 	void setMaxSize(UnsignedInt size);
 	float getFileLength(void* file);
