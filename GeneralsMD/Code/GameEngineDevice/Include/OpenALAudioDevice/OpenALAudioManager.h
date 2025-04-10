@@ -152,7 +152,7 @@ public:
 
 	virtual Real getFileLengthMS(AsciiString strToLoad) const;
 
-	virtual void closeAnySamplesUsingFile(const void *fileToClose);
+	virtual void closeAnySamplesUsingFile(const void *fileToClose) override;
 
 	virtual Bool has3DSensitiveStreamsPlaying(void) const;
 
@@ -167,9 +167,9 @@ protected:
 	Bool startNextLoop(PlayingAudio *looping);
 
 	void playStream(AudioEventRTS *event, OpenALAudioStream* stream);
-	// Returns the file handle for attachment to the PlayingAudio structure
-	void *playSample(AudioEventRTS *event, PlayingAudio *audio);
-	void *playSample3D(AudioEventRTS *event, PlayingAudio * audio);
+	// Returns the buffer handle representing audio data for attachment to the PlayingAudio structure
+	ALuint playSample(AudioEventRTS *event, PlayingAudio *audio);
+	ALuint playSample3D(AudioEventRTS *event, PlayingAudio * audio);
 
 protected:
 	void enumerateDevices(void);
@@ -183,8 +183,8 @@ protected:
 	void stopAudioEvent(AudioHandle handle);
 	void pauseAudioEvent(AudioHandle handle);
 
-	void *loadFileForRead(AudioEventRTS *eventToLoadFrom);
-	void closeFile(void *fileRead);
+	ALuint loadBufferForRead(AudioEventRTS *eventToLoadFrom);
+	void closeBuffer(ALuint bufferToClose);
 
 	PlayingAudio *allocatePlayingAudio(void);
 	void releaseOpenALHandles(PlayingAudio *release);

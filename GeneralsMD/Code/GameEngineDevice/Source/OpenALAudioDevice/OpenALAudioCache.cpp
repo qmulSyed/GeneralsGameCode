@@ -72,7 +72,7 @@ OpenALAudioFileCache::~OpenALAudioFileCache()
 }
 
 //-------------------------------------------------------------------------------------------------
-void *OpenALAudioFileCache::openFile(const OpenFileInfo &fileInfo)
+ALuint OpenALAudioFileCache::getBufferForFile(const OpenFileInfo &fileInfo)
 {
 	AudioEventRTS *eventToOpenFrom = fileInfo.event;
 
@@ -91,7 +91,7 @@ void *OpenALAudioFileCache::openFile(const OpenFileInfo &fileInfo)
 			strToFind = eventToOpenFrom->getDecayFilename();
 			break;
 		case PP_Done:
-			return NULL;
+			return 0;
 		}
 	}
 	else
@@ -103,7 +103,7 @@ void *OpenALAudioFileCache::openFile(const OpenFileInfo &fileInfo)
 		else
 		{
 			DEBUG_CRASH(("No filename to open\n"));
-			return NULL;
+			return 0;
 		}
 	}
 
@@ -111,14 +111,14 @@ void *OpenALAudioFileCache::openFile(const OpenFileInfo &fileInfo)
 
 	if (it != m_openFiles.end()) {
 		++it->second.m_openCount;
-		return  (void*)it->second.m_buffer;
+		return it->second.m_buffer;
 	}
 
 	// Couldn't find the file, so actually open it.
 	File* file = TheFileSystem->openFile(strToFind.str());
 	if (!file) {
 		DEBUG_ASSERTLOG(strToFind.isEmpty(), ("Missing Audio File: '%s'\n", strToFind.str()));
-		return NULL;
+		return 0;
 	}
 
 	UnsignedInt fileSize = file->size();
@@ -131,19 +131,19 @@ void *OpenALAudioFileCache::openFile(const OpenFileInfo &fileInfo)
 	// This transfer ownership of file
 	if (!openedAudioFile.m_ffmpegFile->open(file)) {
 		releaseOpenAudioFile(&openedAudioFile);
-		return nullptr;
+		return 0;
 	}
 
 	if (eventToOpenFrom && eventToOpenFrom->isPositionalAudio()) {
 		if (openedAudioFile.m_ffmpegFile->getNumChannels() > 1) {
 			DEBUG_CRASH(("Requested Positional Play of audio '%s', but it is in stereo.", strToFind.str()));
-			return NULL;
+			return 0;
 		}
 	}
 
 	if (!decodeFFmpeg(&openedAudioFile)) {
 		releaseOpenAudioFile(&openedAudioFile);
-		return nullptr;
+		return 0;
 	}
 
 	openedAudioFile.m_ffmpegFile->close();
@@ -157,38 +157,38 @@ void *OpenALAudioFileCache::openFile(const OpenFileInfo &fileInfo)
 			DEBUG_LOG(("Couldn't free enough space for sample\n"));
 			m_currentlyUsedSize -= openedAudioFile.m_fileSize;
 			releaseOpenAudioFile(&openedAudioFile);
-			return NULL;
+			return 0;
 		}
 	}
 
 	m_openFiles[strToFind] = openedAudioFile;
-	return (void*)openedAudioFile.m_buffer;
+	return openedAudioFile.m_buffer;
 }
 
 //-------------------------------------------------------------------------------------------------
-void OpenALAudioFileCache::closeFile(void* fileToClose)
+void OpenALAudioFileCache::closeBuffer(ALuint bufferToClose)
 {
-	if (!fileToClose) {
+	if (!bufferToClose) {
 		return;
 	}
 
 	OpenFilesHash::iterator it;
 	for (it = m_openFiles.begin(); it != m_openFiles.end(); ++it) {
-		if (it->second.m_buffer == (ALuint)(uintptr_t)fileToClose) {
+		if (it->second.m_buffer == bufferToClose) {
 			--it->second.m_openCount;
 			return;
 		}
 	}
 }
 
-float OpenALAudioFileCache::getFileLength(void* handle)
+float OpenALAudioFileCache::getBufferLength(ALuint handle)
 {
-	if (handle == nullptr) {
+	if (!handle) {
 		return 0.0f;
 	}
 
 	for (auto it = m_openFiles.begin(); it != m_openFiles.end(); ++it) {
-		if (it->second.m_buffer == (ALuint)(uintptr_t)handle) {
+		if (it->second.m_buffer == handle) {
 			return it->second.m_duration;
 		}
 	}
@@ -208,7 +208,7 @@ void OpenALAudioFileCache::releaseOpenAudioFile(OpenAudioFile* fileToRelease)
 {
 	if (fileToRelease->m_openCount > 0) {
 		// This thing needs to be terminated IMMEDIATELY.
-		TheAudio->closeAnySamplesUsingFile((const void*)fileToRelease->m_buffer);
+		TheAudio->closeAnySamplesUsingFile((const void*)(uintptr_t)fileToRelease->m_buffer);
 	}
 
 	if (fileToRelease->m_ffmpegFile) {
@@ -222,7 +222,7 @@ void OpenALAudioFileCache::releaseOpenAudioFile(OpenAudioFile* fileToRelease)
 		alDeleteBuffers(1, &fileToRelease->m_buffer);
 	}
 	fileToRelease->m_ffmpegFile = NULL;
-	fileToRelease->m_buffer = NULL;
+	fileToRelease->m_buffer = 0;
 	fileToRelease->m_eventInfo = NULL;
 }
 

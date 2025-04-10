@@ -33,13 +33,15 @@
 
 struct PlayingAudio
 {
-	ALuint m_source;
+	ALuint m_source = 0;
 	OpenALAudioStream* m_stream = nullptr;
 	FFmpegFile* m_ffmpegFile = nullptr;
 
 	PlayingAudioType m_type;
 	AudioEventRTS* m_audioEventRTS;
-	void* m_file = nullptr;		// The file that was opened to play this
+
+	// The created OpenAL buffer handle for this file
+	ALuint m_bufferHandle = 0;
 	Bool m_requestStop;
 	Bool m_cleanupAudioEventRTS;
 	Int m_framesFaded;
@@ -86,10 +88,10 @@ public:
 
 	// Protected by mutex
 	virtual ~OpenALAudioFileCache();
-	void* openFile(const OpenFileInfo& fileToOpenFrom);
-	void closeFile(void* fileToClose);
+	ALuint getBufferForFile(const OpenFileInfo& fileToOpenFrom);
+	void closeBuffer(ALuint bufferToClose);
 	void setMaxSize(UnsignedInt size);
-	float getFileLength(void* file);
+	float getBufferLength(ALuint handle);
 	// End Protected by mutex
 
 	// Note: These functions should be used for informational purposes only. For speed reasons,

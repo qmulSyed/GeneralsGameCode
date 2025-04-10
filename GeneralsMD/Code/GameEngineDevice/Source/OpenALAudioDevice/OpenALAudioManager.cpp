@@ -864,21 +864,21 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event)
 			}
 			else
 			{
-				source = NULL;
+				source = 0;
 			}
 			// Push it onto the list of playing things
 			audio->m_audioEventRTS = event;
 			audio->m_source = source;
-			audio->m_file = NULL;
+			audio->m_bufferHandle = 0;
 			audio->m_type = PAT_3DSample;
 			m_playing3DSounds.push_back(audio);
 
 			if (source) {
-				audio->m_file = playSample3D(event, audio);
+				audio->m_bufferHandle = playSample3D(event, audio);
 				m_sound->notifyOf3DSampleStart();
 			}
 
-			if (!audio->m_file)
+			if (!audio->m_bufferHandle)
 			{
 				m_playing3DSounds.pop_back();
 #ifdef INTENSIVE_AUDIO_DEBUG
@@ -923,22 +923,22 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event)
 			}
 			else
 			{
-				source = NULL;
+				source = 0;
 			}
 
 			// Push it onto the list of playing things
 			audio->m_audioEventRTS = event;
 			audio->m_source = source;
-			audio->m_file = NULL;
+			audio->m_bufferHandle = 0;
 			audio->m_type = PAT_Sample;
 			m_playingSounds.push_back(audio);
 
 			if (source) {
-				audio->m_file = playSample(event, audio);
+				audio->m_bufferHandle = playSample(event, audio);
 				m_sound->notifyOf2DSampleStart();
 			}
 
-			if (!audio->m_file) {
+			if (!audio->m_bufferHandle) {
 #ifdef INTENSIVE_AUDIO_DEBUG
 				DEBUG_LOG((" Killed (no handles available)\n"));
 #endif
@@ -1116,15 +1116,15 @@ void OpenALAudioManager::pauseAudioEvent(AudioHandle handle)
 }
 
 //-------------------------------------------------------------------------------------------------
-void* OpenALAudioManager::loadFileForRead(AudioEventRTS* eventToLoadFrom)
+ALuint OpenALAudioManager::loadBufferForRead(AudioEventRTS* eventToLoadFrom)
 {
-	return m_audioCache->openFile(OpenFileInfo {.event = eventToLoadFrom});
+	return m_audioCache->getBufferForFile(OpenFileInfo {.event = eventToLoadFrom});
 }
 
 //-------------------------------------------------------------------------------------------------
-void OpenALAudioManager::closeFile(void* fileRead)
+void OpenALAudioManager::closeBuffer(ALuint bufferToClose)
 {
-	m_audioCache->closeFile(fileRead);
+	m_audioCache->closeBuffer(bufferToClose);
 }
 
 
@@ -1174,7 +1174,7 @@ void OpenALAudioManager::releasePlayingAudio(PlayingAudio* release)
 		}
 	}
 	releaseOpenALHandles(release);	// forces stop of this audio
-	closeFile(release->m_file);
+	closeBuffer(release->m_bufferHandle);
 	if (release->m_cleanupAudioEventRTS) {
 		releaseAudioEventRTS(release->m_audioEventRTS);
 	}
@@ -1617,22 +1617,22 @@ void OpenALAudioManager::notifyOfAudioCompletion(UnsignedInt audioCompleted, Uns
 	playing->m_audioEventRTS->advanceNextPlayPortion();
 	if (playing->m_audioEventRTS->getNextPlayPortion() != PP_Done) {
 		if (playing->m_type == PAT_Sample) {
-			closeFile(playing->m_file);	// close it so as not to leak it.
-			playing->m_file = playSample(playing->m_audioEventRTS, playing);
+			closeBuffer(playing->m_bufferHandle);	// close it so as not to leak it.
+			playing->m_bufferHandle = playSample(playing->m_audioEventRTS, playing);
 
 			// If we don't have a file now, then we should drop to the stopped status so that 
 			// We correctly close this handle.
-			if (playing->m_file) {
+			if (playing->m_bufferHandle) {
 				return;
 			}
 		}
 		else if (playing->m_type == PAT_3DSample) {
-			closeFile(playing->m_file);	// close it so as not to leak it.
-			playing->m_file = playSample3D(playing->m_audioEventRTS, playing);
+			closeBuffer(playing->m_bufferHandle);	// close it so as not to leak it.
+			playing->m_bufferHandle = playSample3D(playing->m_audioEventRTS, playing);
 
 			// If we don't have a file now, then we should drop to the stopped status so that 
 			// We correctly close this handle.
-			if (playing->m_file) {
+			if (playing->m_bufferHandle) {
 				return;
 			}
 		}
@@ -2657,9 +2657,9 @@ Real OpenALAudioManager::getFileLengthMS(AsciiString strToLoad) const
 	float length = 0.0f;
 
 #ifdef SAGE_USE_FFMPEG
-	void* handle = m_audioCache->openFile(OpenFileInfo{.filename = &strToLoad});
-	length = m_audioCache->getFileLength(handle);
-	m_audioCache->closeFile(handle);
+	ALuint handle = m_audioCache->getBufferForFile(OpenFileInfo{.filename = &strToLoad});
+	length = m_audioCache->getBufferLength(handle);
+	m_audioCache->closeBuffer(handle);
 #endif
 
 	return length;
@@ -2668,6 +2668,11 @@ Real OpenALAudioManager::getFileLengthMS(AsciiString strToLoad) const
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::closeAnySamplesUsingFile(const void* fileToClose)
 {
+	ALuint bufferHandle = (ALuint)(uintptr_t)fileToClose;
+	if (!bufferHandle) {
+		return;
+	}
+
 	std::list<PlayingAudio*>::iterator it;
 	PlayingAudio* playing;
 
@@ -2677,7 +2682,7 @@ void OpenALAudioManager::closeAnySamplesUsingFile(const void* fileToClose)
 			continue;
 		}
 
-		if (playing->m_file == fileToClose) {
+		if (playing->m_bufferHandle == bufferHandle) {
 			releasePlayingAudio(playing);
 			it = m_playingSounds.erase(it);
 		}
@@ -2692,7 +2697,7 @@ void OpenALAudioManager::closeAnySamplesUsingFile(const void* fileToClose)
 			continue;
 		}
 
-		if (playing->m_file == fileToClose) {
+		if (playing->m_bufferHandle == bufferHandle) {
 			releasePlayingAudio(playing);
 			it = m_playing3DSounds.erase(it);
 		}
@@ -2760,8 +2765,8 @@ Real OpenALAudioManager::getEffectiveVolume(AudioEventRTS* event) const
 //-------------------------------------------------------------------------------------------------
 Bool OpenALAudioManager::startNextLoop(PlayingAudio* looping)
 {
-	closeFile(looping->m_file);
-	looping->m_file = NULL;
+	closeBuffer(looping->m_bufferHandle);
+	looping->m_bufferHandle = 0;
 
 	if (looping->m_requestStop) {
 		return false;
@@ -2785,13 +2790,13 @@ Bool OpenALAudioManager::startNextLoop(PlayingAudio* looping)
 		}
 
 		if (looping->m_type == PAT_3DSample) {
-			looping->m_file = playSample3D(looping->m_audioEventRTS, looping);
+			looping->m_bufferHandle = playSample3D(looping->m_audioEventRTS, looping);
 		}
 		else {
-			looping->m_file = playSample(looping->m_audioEventRTS, looping);
+			looping->m_bufferHandle = playSample(looping->m_audioEventRTS, looping);
 		}
 
-		return looping->m_file != NULL;
+		return looping->m_bufferHandle != 0;
 	}
 	return false;
 }
@@ -2811,10 +2816,10 @@ void OpenALAudioManager::playStream(AudioEventRTS* event, OpenALAudioStream* str
 }
 
 //-------------------------------------------------------------------------------------------------
-void* OpenALAudioManager::playSample(AudioEventRTS* event, PlayingAudio* audio)
+ALuint OpenALAudioManager::playSample(AudioEventRTS* event, PlayingAudio* audio)
 {
 	// Load the file in
-	void* bufferHandle = loadFileForRead(event);
+	ALuint bufferHandle = loadBufferForRead(event);
 	if (bufferHandle) {
 		alSourcei(audio->m_source, AL_SOURCE_RELATIVE, AL_TRUE);
 		alSourcei(audio->m_source, AL_BUFFER, (ALuint)(uintptr_t)bufferHandle);
@@ -2825,11 +2830,11 @@ void* OpenALAudioManager::playSample(AudioEventRTS* event, PlayingAudio* audio)
 }
 
 //-------------------------------------------------------------------------------------------------
-void* OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* sample3D)
+ALuint OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* sample3D)
 {
 	const Coord3D* pos = getCurrentPositionFromEvent(event);
 	if (pos) {
-		void* handle = loadFileForRead(event);
+		ALuint handle = loadBufferForRead(event);
 		const AudioSettings* audioSettings = getAudioSettings();
 
 		if (handle) {
@@ -2853,7 +2858,7 @@ void* OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* sampl
 			Real y = pos->y;
 			Real z = pos->z;
 			alSource3f(source, AL_POSITION, x, y, z);
-			alSourcei(source, AL_BUFFER, (ALuint)(uintptr_t)handle);
+			alSourcei(source, AL_BUFFER, handle);
 			DEBUG_LOG(("Playing 3D sample '%s' at %f, %f, %f\n", event->getEventName().str(), x, y, z));
 
 			// Start playback
@@ -2862,7 +2867,7 @@ void* OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* sampl
 		return handle;
 	}
 
-	return NULL;
+	return 0;
 }
 
 //-------------------------------------------------------------------------------------------------
