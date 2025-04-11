@@ -76,6 +76,16 @@ struct OpenFileInfo
 {
 	AsciiString* filename;
 	AudioEventRTS* event;
+
+	OpenFileInfo(AsciiString *filename) : filename(filename),
+																				event(NULL)
+	{
+	}
+
+	OpenFileInfo(AudioEventRTS *event) : filename(NULL),
+																			 event(event)
+	{
+	}
 };
 
 typedef std::unordered_map< AsciiString, OpenAudioFile, rts::hash<AsciiString>, rts::equal_to<AsciiString> > OpenFilesHash;
