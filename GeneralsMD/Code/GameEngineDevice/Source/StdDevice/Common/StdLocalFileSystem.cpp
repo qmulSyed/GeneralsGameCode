@@ -146,7 +146,7 @@ File * StdLocalFileSystem::openFile(const Char *filename, Int access /* = 0 */)
 		}
 	}
 	
-	if (file->open((const Char*)path.c_str(), access) == FALSE) {
+	if (file->open(path.string().c_str(), access) == FALSE) {
 		file->close();
 		file->deleteInstance();
 		file = NULL;
