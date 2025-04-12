@@ -8,16 +8,12 @@ This repository is a Linux focused fork of C&C Generals - and its expansion Zero
 This is where you put build instructions:
 
 1 - 
-2 - 
-3 - 
 
 ## Build Instructions (Windows)
 
 This is where you put build instructions:
 
 1 - 
-2 - 
-3 - 
 
 ## Contributing
 
